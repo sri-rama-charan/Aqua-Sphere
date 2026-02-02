@@ -12,6 +12,7 @@ export const AppLayout = ({ children }: { children: React.ReactNode }) => {
   const menuItems = [
     { path: "/", label: "🐟 Fish Health Detection" },
     { path: "/temperature", label: "🌡️ Temperature Monitor" },
+    { path: "/seed-count", label: "🐠 Fish Seed Counter" },
   ];
 
   return (

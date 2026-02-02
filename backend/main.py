@@ -1,3 +1,9 @@
+import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
+
 from fastapi import FastAPI, File, UploadFile, HTTPException, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -8,6 +14,7 @@ import logging
 import traceback
 from disease_knowledge import get_disease_info
 from temperature_monitoring import TemperatureRiskAssessor, create_assessment_response
+from seed_counting import predict_seed_count
 from weather_service import WeatherService, LocationService
 from typing import Optional, List
 from pydantic import BaseModel
@@ -199,6 +206,64 @@ async def predict_image(file: UploadFile = File(...), language: Optional[str] = 
         raise HTTPException(
             status_code=500,
             detail=f"Error processing image: {str(e)}"
+        )
+
+
+# ============================================================================
+# FISH SEED COUNTING ENDPOINT
+# ============================================================================
+
+@app.post("/seed-count")
+async def count_fish_seeds(
+    file: UploadFile = File(...),
+    confidence: Optional[float] = Form(None),
+):
+    """
+    Count fish seeds (fry) from uploaded image using a YOLO detection model.
+
+    Args:
+        file: Image file
+        confidence: Optional confidence threshold (0.0 - 1.0). Default: 0.05
+    """
+    try:
+        # Validate file type
+        if not file.content_type.startswith("image/"):
+            raise HTTPException(
+                status_code=400,
+                detail="File must be an image"
+            )
+
+        contents = await file.read()
+        image = Image.open(io.BytesIO(contents))
+
+        if image.mode != "RGB":
+            image = image.convert("RGB")
+
+        result = await predict_seed_count(image=image, confidence=confidence)
+
+        return JSONResponse(
+            content={
+                "count": result["count"],
+                "confidence_threshold": result["confidence_threshold"],
+                "detections": result["detections"],
+            },
+            headers={
+                "Access-Control-Allow-Origin": "*",
+            }
+        )
+
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error counting fish seeds: {str(e)}")
+        logger.error(traceback.format_exc())
+        raise HTTPException(
+            status_code=500,
+            detail="Error counting fish seeds"
         )
 
 

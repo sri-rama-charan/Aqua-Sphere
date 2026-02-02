@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import FishHealthDetection from "./pages/FishHealthDetection";
 import TemperatureMonitor from "./pages/TemperatureMonitor";
+import FishSeedCount from "./pages/FishSeedCount";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -20,6 +21,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<FishHealthDetection />} />
             <Route path="/temperature" element={<TemperatureMonitor />} />
+            <Route path="/seed-count" element={<FishSeedCount />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
