@@ -41,14 +41,10 @@ async def load_model():
         logger.info("Loading model with memory optimization...")
         import torch
         import os
-        from huggingface_hub import login
         
-        # Authenticate with Hugging Face
+        # Read Hugging Face token (optional)
         hf_token = os.getenv('HF_TOKEN')
-        if hf_token:
-            login(token=hf_token)
-            logger.info("Successfully authenticated with Hugging Face")
-        else:
+        if not hf_token:
             logger.warning("No HF_TOKEN found in environment variables, proceeding without authentication")
         
         # Set environment variables for memory optimization
@@ -62,6 +58,7 @@ async def load_model():
         classifier = pipeline(
             "image-classification",
             model="Saon110/fish-shrimp-disease-classifier",
+            token=hf_token,
             device=-1,  # Force CPU
             torch_dtype=torch.float32,  # Use float32 for CPU
             trust_remote_code=True

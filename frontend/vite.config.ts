@@ -15,6 +15,14 @@ export default defineConfig(({ mode }) => {
       hmr: {
         overlay: false,
       },
+      watch: {
+        ignored: [
+          "**/android/**/build/**",
+          "**/android/**/intermediates/**",
+          "**/android/**/outputs/**",
+          "**/android/.gradle/**",
+        ],
+      },
       proxy: {
         "/api": {
           target: apiTarget,
