@@ -1,0 +1,63 @@
+// UI translations for the app
+export const translations = {
+  en: {
+    appTitle: "Fish & Shrimp Disease Detection",
+    uploadImage: "Upload Image",
+    detectDisease: "Detect Disease",
+    diseaseName: "Disease Name",
+    confidence: "Confidence",
+    cause: "Cause",
+    severity: "Severity",
+    treatment: "Treatment",
+    treatmentSummary: "Quick Summary",
+    fullTreatment: "Full Treatment Details",
+    waterTesting: "Water Testing Schedule",
+    consultDoctor: "Consult Specialist",
+    lowSeverity: "Low",
+    mediumSeverity: "Medium",
+    highSeverity: "High",
+    unknown: "Unknown",
+    healthy: "Healthy",
+    language: "Language",
+    selectLanguage: "Select Language",
+    warningTitle: "⚠️ Important Notice",
+    uploadInstruction: "Click to upload an image of your fish or shrimp",
+    supportedFormats: "Supported: JPG, PNG (max 10MB)",
+    analyzing: "Analyzing image...",
+    errorUpload: "Error uploading image. Please try again.",
+    errorAnalysis: "Error analyzing image. Please check the image and try again.",
+  },
+  te: {
+    appTitle: "చేపలు & రొయ్యల వ్యాధి గుర్తింపు",
+    uploadImage: "చిత్రం ఎక్కించండి",
+    detectDisease: "వ్యాధి గుర్తించండి",
+    diseaseName: "వ్యాధి పేరు",
+    confidence: "విశ్వాసం స్థాయి",
+    cause: "కారణం",
+    severity: "తీవ్రత",
+    treatment: "చికిత్స",
+    treatmentSummary: "సంక్షిప్త సారాంశం",
+    fullTreatment: "పూర్తి చికిత్స వివరాలు",
+    waterTesting: "నీటి పరీక్ష షెడ్యూల్",
+    consultDoctor: "నిపుణుడిని సంప్రదించండి",
+    lowSeverity: "తక్కువ",
+    mediumSeverity: "మధ్యస్థం",
+    highSeverity: "అధికం",
+    unknown: "తెలియదు",
+    healthy: "ఆరోగ్యంగా",
+    language: "భాష",
+    selectLanguage: "భాషను ఎంచుకోండి",
+    warningTitle: "⚠️ ముఖ్యమైన గమనిక",
+    uploadInstruction: "మీ చేప లేదా రొయ్య చిత్రాన్ని అప్‌లోడ్ చేయడానికి క్లిక్ చేయండి",
+    supportedFormats: "మద్దతు: JPG, PNG (గరిష్టం 10MB)",
+    analyzing: "చిత్రాన్ని విశ్లేషిస్తోంది...",
+    errorUpload: "చిత్రాన్ని అప్‌లోడ్ చేయడంలో లోపం. దయచేసి మళ్లీ ప్రయత్నించండి.",
+    errorAnalysis: "చిత్రాన్ని విశ్లేషించడంలో లోపం. దయచేసి చిత్రాన్ని తనిఖీ చేసి మళ్లీ ప్రయత్నించండి.",
+  },
+};
+
+export type Language = keyof typeof translations;
+
+export const getTranslation = (language: Language, key: keyof typeof translations.en): string => {
+  return translations[language]?.[key] || translations.en[key];
+};

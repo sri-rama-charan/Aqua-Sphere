@@ -3,7 +3,10 @@ Fish & Shrimp Disease Knowledge Base
 Contains detailed information about aquaculture diseases including causes, severity, and treatments.
 Severity levels are determined by image analysis and disease progression indicators.
 Optimized for mobile display with concise, actionable guidance.
+Supports multiple languages for international users.
 """
+
+from translations import get_disease_translation, get_warning_message
 
 DISEASE_KNOWLEDGE = {
     "Fish_Bacterial Red disease": {
@@ -163,19 +166,20 @@ def get_treatment_summary(full_treatment: str, severity: str) -> str:
         return f"📋 {sentences[0]}. Monitor closely for 3-5 days."
 
 
-def get_disease_info(label: str, confidence: float):
+def get_disease_info(label: str, confidence: float, language: str = "en"):
     """
     Get comprehensive disease information based on model prediction.
     
     Args:
         label: The disease label from the model
         confidence: Confidence score (0-1)
+        language: Language code (en, te)
     
     Returns:
         dict: Disease information including name, cause, severity, and treatment
     """
     # Log the input for debugging
-    print(f"[DEBUG] get_disease_info called with label='{label}', confidence={confidence}")
+    print(f"[DEBUG] get_disease_info called with label='{label}', confidence={confidence}, language='{language}'")
     
     # Get disease info from knowledge base
     disease_data = DISEASE_KNOWLEDGE.get(label)
@@ -187,27 +191,51 @@ def get_disease_info(label: str, confidence: float):
         
         # Fallback for unknown diseases
         disease_name = label.replace("Fish_", "").replace("_", " ")
+        unknown_msg = "Information not available for this condition. Please consult a fish disease specialist for accurate diagnosis." if language == "en" else "ఈ పరిస్థితి గురించి సమాచారం అందుబాటులో లేదు. ఖచ్చితమైన నిర్ధారణ కోసం చేప వ్యాధి నిపుణుడిని సంప్రదించండి."
+        consult_msg = "Consult a professional fish disease specialist or aquatic veterinarian for proper diagnosis and treatment plan." if language == "en" else "సరైన రోగనిర్ధారణ మరియు చికిత్స ప్రణాళిక కోసం వృత్తిపరమైన చేప వ్యాధి నిపుణుడు లేదా జల వైద్యుడిని సంప్రదించండి."
         return {
             "disease_name": disease_name,
             "confidence": confidence,
-            "cause": "Information not available for this condition. Please consult a fish disease specialist for accurate diagnosis.",
-            "severity": "Unknown",
-            "treatment": "Consult a professional fish disease specialist or aquatic veterinarian for proper diagnosis and treatment plan.",
+            "cause": unknown_msg,
+            "severity": "Unknown" if language == "en" else "తెలియదు",
+            "treatment": consult_msg,
             "warning": None
         }
+    
+    # Check for translation
+    translation = get_disease_translation(label, language)
     
     # Determine severity based on confidence and disease type
     severity = determine_severity(confidence, label)
     
+    # Translate severity
+    severity_translations = {
+        "en": {"Low": "Low", "Medium": "Medium", "High": "High"},
+        "te": {"Low": "తక్కువ", "Medium": "మధ్యస్థం", "High": "అధికం"}
+    }
+    severity_text = severity_translations.get(language, severity_translations["en"]).get(severity, severity)
+    
     # Get severity-appropriate treatment
     treatment = disease_data["treatments"].get(severity, disease_data["treatments"]["Medium"])
     
+    # Use translation if available and not English
+    if translation and language != "en":
+        disease_name = translation.get("display_name", disease_data["display_name"])
+        cause = translation.get("cause", disease_data["cause"])
+        # Try to get translated treatment
+        translated_treatments = translation.get("treatments", {})
+        if translated_treatments and severity in translated_treatments:
+            treatment = translated_treatments[severity]
+    else:
+        disease_name = disease_data["display_name"]
+        cause = disease_data["cause"]
+    
     # Prepare response
     response = {
-        "disease_name": disease_data["display_name"],
+        "disease_name": disease_name,
         "confidence": confidence,
-        "cause": disease_data["cause"],
-        "severity": severity,
+        "cause": cause,
+        "severity": severity_text,
         "treatment": treatment,
         "treatment_summary": get_treatment_summary(treatment, severity),  # Mobile-friendly short version
         "warning": None
@@ -215,14 +243,16 @@ def get_disease_info(label: str, confidence: float):
     
     # Add warning for low confidence predictions
     if confidence < 0.7:  # Below 70% confidence
+        warning_message = get_warning_message("high", language)
         response["warning"] = {
             "level": "high",
-            "message": "⚠️ Low confidence detection. The AI model is uncertain about this diagnosis. This may indicate early-stage disease or image quality issues. Please consult a fish disease specialist or aquatic veterinarian for professional confirmation before starting any treatment. Consider taking multiple clear photos from different angles for better analysis."
+            "message": warning_message
         }
     elif confidence < 0.85:  # Between 70-85% confidence
+        warning_message = get_warning_message("medium", language)
         response["warning"] = {
             "level": "medium",
-            "message": "Note: Moderate confidence level. While the detection appears reasonable, we recommend monitoring your fish closely and consulting a specialist if symptoms worsen or persist. The severity level is estimated based on visible symptoms."
+            "message": warning_message
         }
     
     return response

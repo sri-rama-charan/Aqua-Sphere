@@ -1,15 +1,28 @@
 import { AlertTriangle, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Language, getTranslation } from "@/lib/translations";
 
 interface ConfidenceWarningProps {
   warning: {
     level: "high" | "medium";
     message: string;
   };
+  language: Language;
 }
 
-const ConfidenceWarning = ({ warning }: ConfidenceWarningProps) => {
+const ConfidenceWarning = ({ warning, language }: ConfidenceWarningProps) => {
   const isHighWarning = warning.level === "high";
+  
+  const titles = {
+    en: {
+      high: "Low Confidence Detection",
+      medium: "Moderate Confidence"
+    },
+    te: {
+      high: "తక్కువ విశ్వాసం గుర్తింపు",
+      medium: "మోస్తరు విశ్వాసం"
+    }
+  };
 
   return (
     <Alert 
@@ -30,7 +43,7 @@ const ConfidenceWarning = ({ warning }: ConfidenceWarningProps) => {
           ? "text-red-800 dark:text-red-300" 
           : "text-yellow-800 dark:text-yellow-300"
       }`}>
-        {isHighWarning ? "Low Confidence Detection" : "Moderate Confidence"}
+        {titles[language][isHighWarning ? "high" : "medium"]}
       </AlertTitle>
       <AlertDescription className={`${
         isHighWarning 

@@ -1,4 +1,4 @@
-from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi import FastAPI, File, UploadFile, HTTPException, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from transformers import pipeline
@@ -7,6 +7,7 @@ import io
 import logging
 import traceback
 from disease_knowledge import get_disease_info
+from typing import Optional
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -103,9 +104,21 @@ async def health_check():
     )
 
 @app.post("/predict")
-async def predict_image(file: UploadFile = File(...)):
-    """Predict fish disease from uploaded image"""
+async def predict_image(file: UploadFile = File(...), language: Optional[str] = Form("en")):
+    """
+    Predict fish disease from uploaded image
+    
+    Args:
+        file: Image file
+        language: Language code (en=English, te=Telugu). Default: en
+    """
     try:
+        # Validate language
+        if language not in ["en", "te"]:
+            language = "en"
+        
+        logger.info(f"Processing image: {file.filename}, language: {language}")
+        
         # Check if model is loaded
         if classifier is None:
             raise HTTPException(
@@ -151,7 +164,7 @@ async def predict_image(file: UploadFile = File(...)):
                 )
             
             # Get enriched disease information even for non-fish predictions
-            disease_info = get_disease_info(top_prediction["label"], float(top_prediction["score"]))
+            disease_info = get_disease_info(top_prediction["label"], float(top_prediction["score"]), language)
             
             return JSONResponse(
                 content=disease_info,
@@ -163,10 +176,10 @@ async def predict_image(file: UploadFile = File(...)):
         top_fish = fish_preds[0]
         
         # Log the prediction details
-        logger.info(f"Top prediction - Label: {top_fish['label']}, Score: {top_fish['score']}")
+        logger.info(f"Top prediction - Label: {top_fish['label']}, Score: {top_fish['score']}, Language: {language}")
         
-        # Get enriched disease information
-        disease_info = get_disease_info(top_fish["label"], float(top_fish["score"]))
+        # Get enriched disease information with language support
+        disease_info = get_disease_info(top_fish["label"], float(top_fish["score"]), language)
         
         # Log the returned disease info
         logger.info(f"Disease info returned: {disease_info}")

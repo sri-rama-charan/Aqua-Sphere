@@ -2,14 +2,16 @@ import { useRef } from "react";
 import { Upload, ImageIcon, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Language, getTranslation } from "@/lib/translations";
 
 interface ImageUploadProps {
   image: string | null;
   onImageSelect: (image: string, file?: File) => void;
   onImageClear: () => void;
+  language: Language;
 }
 
-const ImageUpload = ({ image, onImageSelect, onImageClear }: ImageUploadProps) => {
+const ImageUpload = ({ image, onImageSelect, onImageClear, language }: ImageUploadProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -62,10 +64,10 @@ const ImageUpload = ({ image, onImageSelect, onImageClear }: ImageUploadProps) =
               <ImageIcon className="w-10 h-10 text-primary/60" />
             </div>
             <p className="text-base font-medium text-foreground mb-1">
-              Upload an image of the fish
+              {getTranslation(language, "uploadInstruction")}
             </p>
             <p className="text-sm text-muted-foreground">
-              Tap to select from gallery
+              {getTranslation(language, "supportedFormats")}
             </p>
           </div>
         )}
@@ -79,7 +81,7 @@ const ImageUpload = ({ image, onImageSelect, onImageClear }: ImageUploadProps) =
           onClick={handleUploadClick}
         >
           <Upload className="w-5 h-5" />
-          Upload Image
+          {getTranslation(language, "uploadImage")}
         </Button>
       )}
     </section>

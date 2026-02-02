@@ -1,12 +1,14 @@
 import { Scan, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Language, getTranslation } from "@/lib/translations";
 
 interface DetectionButtonProps {
   isLoading: boolean;
   onDetect: () => void;
+  language: Language;
 }
 
-const DetectionButton = ({ isLoading, onDetect }: DetectionButtonProps) => {
+const DetectionButton = ({ isLoading, onDetect, language }: DetectionButtonProps) => {
   return (
     <section className="px-4 animate-fade-in" style={{ animationDelay: "0.2s" }}>
       <Button
@@ -18,19 +20,19 @@ const DetectionButton = ({ isLoading, onDetect }: DetectionButtonProps) => {
         {isLoading ? (
           <>
             <Loader2 className="w-5 h-5 animate-spin-slow" />
-            Analyzing...
+            {getTranslation(language, "analyzing")}
           </>
         ) : (
           <>
             <Scan className="w-5 h-5" />
-            Detect Disease
+            {getTranslation(language, "detectDisease")}
           </>
         )}
       </Button>
       
       {isLoading && (
         <p className="text-center text-sm text-muted-foreground mt-3 animate-pulse-soft">
-          AI is analyzing the image...
+          {getTranslation(language, "analyzing")}
         </p>
       )}
     </section>
