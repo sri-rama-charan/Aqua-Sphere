@@ -7,7 +7,10 @@ import io
 import logging
 import traceback
 from disease_knowledge import get_disease_info
-from typing import Optional
+from temperature_monitoring import TemperatureRiskAssessor, create_assessment_response
+from weather_service import WeatherService, LocationService
+from typing import Optional, List
+from pydantic import BaseModel
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -197,3 +200,217 @@ async def predict_image(file: UploadFile = File(...), language: Optional[str] = 
             status_code=500,
             detail=f"Error processing image: {str(e)}"
         )
+
+
+# ============================================================================
+# TEMPERATURE MONITORING ENDPOINTS
+# ============================================================================
+
+# Pydantic Models for request/response validation
+class TemperatureCheckRequest(BaseModel):
+    """Request model for temperature risk assessment"""
+    temperature: float
+    species: Optional[str] = "Generic"
+    previous_temperature: Optional[float] = None
+    location: Optional[str] = "Unknown"
+
+
+class LocationWeatherRequest(BaseModel):
+    """Request model for location-based weather check"""
+    location: str  # Can be "city name", "city, country", or "lat,lon"
+    species: Optional[str] = "Generic"
+    include_forecast: Optional[bool] = True
+
+
+@app.post("/temperature/assess-risk")
+async def assess_temperature_risk(request: TemperatureCheckRequest):
+    """
+    Assess temperature-based risk for fish/shrimp farming.
+    
+    Args:
+        temperature: Current water temperature in Celsius
+        species: Type of fish/shrimp (Tilapia, Catfish, Carp, Shrimp, etc.)
+        previous_temperature: Previous reading for trend analysis
+        location: Location identifier
+        
+    Returns:
+        Risk assessment with issues, actions, and disease risks
+    """
+    try:
+        # Validate temperature input
+        if not -50 <= request.temperature <= 60:
+            raise HTTPException(
+                status_code=400,
+                detail="Temperature must be between -50°C and 60°C"
+            )
+        
+        logger.info(f"Assessing temperature: {request.temperature}°C, species: {request.species}")
+        
+        # Get risk assessment
+        assessment = TemperatureRiskAssessor.classify_risk(
+            current_temp=request.temperature,
+            species=request.species,
+            previous_temp=request.previous_temperature,
+            location=request.location
+        )
+        
+        response = create_assessment_response(assessment)
+        
+        return JSONResponse(
+            content=response,
+            headers={"Access-Control-Allow-Origin": "*"}
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error assessing temperature risk: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error assessing risk: {str(e)}"
+        )
+
+
+@app.post("/weather/location-check")
+async def check_location_weather(request: LocationWeatherRequest):
+    """
+    Get current temperature and risk assessment for a location.
+    
+    Args:
+        location: City name, "city,country", or "latitude,longitude"
+        species: Fish/shrimp species for safe range comparison
+        include_forecast: Whether to include 3-day forecast
+        
+    Returns:
+        Current weather, temperature risk level, and 3-day forecast
+    """
+    try:
+        logger.info(f"Checking weather for location: {request.location}")
+        
+        # Resolve location to coordinates
+        location_data = await LocationService.resolve_location(request.location)
+        if not location_data:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Location '{request.location}' not found. Try: 'city name' or 'lat,lon'"
+            )
+        
+        lat, lon, location_name = location_data
+        logger.info(f"Resolved to: {location_name} ({lat}, {lon})")
+        
+        # Get current weather
+        weather = await WeatherService.get_current_weather(lat, lon, location_name)
+        if not weather:
+            raise HTTPException(
+                status_code=502,
+                detail="Failed to fetch weather data. Please try again later."
+            )
+        
+        current_temp = weather.get("temperature")
+        
+        # Assess temperature risk
+        assessment = TemperatureRiskAssessor.classify_risk(
+            current_temp=current_temp,
+            species=request.species,
+            location=location_name
+        )
+        
+        risk_response = create_assessment_response(assessment)
+        
+        # Get forecast if requested
+        forecast_data = None
+        if request.include_forecast:
+            forecast = await WeatherService.get_forecast(lat, lon, days=3)
+            if forecast:
+                forecast_data = []
+                for day in forecast:
+                    # Assess risk for forecast temps
+                    day_risk = TemperatureRiskAssessor.classify_risk(
+                        current_temp=day.get("temp_mean", 0),
+                        species=request.species,
+                        location=location_name
+                    )
+                    forecast_data.append({
+                        "date": day.get("date"),
+                        "temp_min": day.get("temp_min"),
+                        "temp_max": day.get("temp_max"),
+                        "temp_mean": day.get("temp_mean"),
+                        "weather": day.get("weather_description"),
+                        "precipitation_mm": day.get("precipitation"),
+                        "risk_level": day_risk.risk_level.value,
+                        "urgency_score": day_risk.urgency_score
+                    })
+        
+        return JSONResponse(
+            content={
+                "location": {
+                    "name": location_name,
+                    "latitude": lat,
+                    "longitude": lon,
+                    "timezone": weather.get("timezone", "Unknown")
+                },
+                "current_weather": {
+                    "temperature": current_temp,
+                    "conditions": weather.get("weather_description"),
+                    "humidity_percent": weather.get("humidity"),
+                    "wind_speed_kmh": weather.get("wind_speed"),
+                    "timestamp": weather.get("timestamp")
+                },
+                "risk_assessment": risk_response,
+                "forecast_3day": forecast_data,
+                "species": request.species,
+                "api_used": "Open-Meteo (free, no API key)"
+            },
+            headers={"Access-Control-Allow-Origin": "*"}
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error checking location weather: {str(e)}")
+        logger.error(traceback.format_exc())
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error checking weather: {str(e)}"
+        )
+
+
+@app.get("/temperature/species-list")
+async def get_species_list():
+    """Get list of supported species and their safe temperature ranges"""
+    from temperature_monitoring import SPECIES_TEMPERATURE_RANGES
+    
+    species_info = {}
+    for species, temps in SPECIES_TEMPERATURE_RANGES.items():
+        species_info[species] = {
+            "safe_range_celsius": [temps["min"], temps["max"]],
+            "optimal_celsius": temps["optimal"],
+            "range_description": f"{temps['min']}°C - {temps['max']}C (optimal: {temps['optimal']}°C)"
+        }
+    
+    return JSONResponse(
+        content={
+            "supported_species": species_info,
+            "note": "Use species name exactly as shown. If species not found, 'Generic' range will be used."
+        },
+        headers={"Access-Control-Allow-Origin": "*"}
+    )
+
+
+@app.get("/weather/health")
+async def weather_service_health():
+    """Check if weather API is available"""
+    from weather_service import verify_api_health
+    
+    health = await verify_api_health()
+    
+    status = "healthy" if all(health.values()) else "degraded"
+    
+    return JSONResponse(
+        content={
+            "status": status,
+            "services": health,
+            "open_meteo": "Open-Meteo (primary service)"
+        },
+        headers={"Access-Control-Allow-Origin": "*"}
+    )
